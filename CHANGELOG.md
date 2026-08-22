@@ -4,6 +4,42 @@ All notable changes to this project will be documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/), and this
 project adheres to [Semantic Versioning](https://semver.org/).
 
+## [v0.2.0] - 2026-08-22
+
+### Added — review-engine package (`internal/reviewengine`)
+
+Implements the [review-engine capability](https://github.com/bbbbbmy/vibecoding/tree/main/openspec/specs/review-engine) (6 Requirement). The orchestrator consumes the `LLMProvider` interface from phase 2.
+
+- `types.go` — `Request` / `Result` / `Comment` / `Feedback` / `Status` / `StepName` / `TokenUsage`
+- `engine.go` — `Engine` interface + `DefaultEngine` + `EngineDeps`
+- `platform.go` — `PlatformAdapter` interface (consumer-side; phase 4 provides `GitHubAdapter`)
+- `feedback_store.go` — `FeedbackStore` interface + `InMemoryFeedbackStore` (30-day window, 10k/repo cap, thread-safe)
+- `pipeline.go` — 5-step orchestrator (split → context → LLM → dedup → feedback)
+- `split.go` — file-level diff splitter with token estimation + 60% budget safety margin
+- `dedup.go` — sha256 fingerprint + token-jaccard similarity (≥ 0.85 drops)
+- `failure.go` — `Classify(err) StepDecision` table: context_too_long → retry; rate_limited → retry; provider_5xx → skip; provider_4xx → escalate; ErrTokenLimitExceeded → skip
+- `metrics.go` — prometheus collectors (`reviewpilot_review_total{status}`, `reviewpilot_review_tokens_total{stage}`, `reviewpilot_review_step_duration_seconds{step}`); nil-safe for tests
+- 33 unit tests covering: end-to-end happy path, dedup by exact FP, dedup by token similarity, feedback injection on second run, single-file-oversized → skipped, LLM 5xx failure isolation, missing dep validation
+
+### Build environment
+
+- Go toolchain upgraded to **1.25** (required by `github.com/prometheus/client_golang v1.24.1`)
+- Dockerfile `golang:1.25-bookworm` (was `1.22-bookworm`)
+- ci.yml `go-version: "1.25"` (was `"1.22"`)
+- `go.mod` declares `go 1.25.0` + `toolchain go1.26.7`
+
+### Verification
+
+- `gofmt -l .` empty
+- `go vet ./...` empty
+- `staticcheck ./...` empty
+- `go test -count=1 ./...` all green (69 tests total)
+
+### Implementation reference
+
+- Phase 3 proposal: [vibecoding → add-reviewpilot-impl-phase3](https://github.com/bbbbbmy/vibecoding/tree/main/openspec/changes/add-reviewpilot-impl-phase3)
+- Spec: [vibecoding → spec/review-engine](https://github.com/bbbbbmy/vibecoding/tree/main/openspec/specs/review-engine)
+
 ## [v0.1.0] - 2026-08-22
 
 ### Added — llm-providers package (`internal/llmopenai`)
