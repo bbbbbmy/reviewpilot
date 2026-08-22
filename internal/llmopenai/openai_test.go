@@ -245,13 +245,3 @@ func TestChat_RequestBodyShape(t *testing.T) {
 }
 
 // helper used by stream_test.go too.
-func newOKProvider(t *testing.T, h http.Handler) (*OpenAICompatibleProvider, *httptest.Server) {
-	t.Helper()
-	srv := httptest.NewServer(h)
-	p, err := NewProvider(Config{APIKey: "sk-test", BaseURL: srv.URL})
-	if err != nil {
-		srv.Close()
-		t.Fatalf("NewProvider: %v", err)
-	}
-	return p, srv
-}
