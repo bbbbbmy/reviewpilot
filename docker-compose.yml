@@ -1,0 +1,34 @@
+services:
+  reviewpilot:
+    build:
+      context: .
+      args:
+        VERSION: v0.0.1
+    image: bbbbbmy/reviewpilot:v0.0.1
+    container_name: reviewpilot
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      RP_HTTP_LISTEN: ":8080"
+      RP_DB_PATH: /var/lib/reviewpilot/review.db
+      # GitHub App (set up before enabling webhook entry in v0.1.0+)
+      # RP_GITHUB_APP_ID:
+      # RP_GITHUB_APP_PRIVATE_KEY:
+      # RP_GITHUB_WEBHOOK_SECRET:
+      # Admin auth (required before enabling Web UI in v0.2.0+)
+      # RP_ADMIN_USER:
+      # RP_ADMIN_PASS:
+      # LLM provider (required before review pipeline starts)
+      # RP_LLM_OPENAI_API_KEY:
+      # RP_LLM_OPENAI_BASE_URL:
+    volumes:
+      - data:/var/lib/reviewpilot
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/reviewpilot", "--healthcheck-only"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  data:

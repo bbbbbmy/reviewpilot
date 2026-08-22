@@ -1,0 +1,37 @@
+# --- Binaries ---
+/reviewpilot
+/bin/
+/dist/
+*.exe
+*.dll
+*.so
+*.dylib
+
+# --- Tests ---
+*.test
+*.out
+coverage.txt
+coverage.html
+*.coverprofile
+
+# --- Go workspace ---
+go.work
+go.work.sum
+
+# --- Local state / config ---
+.env
+.env.local
+*.db
+*.sqlite
+*.sqlite-journal
+data/
+var/
+config.local.yaml
+
+# --- Editor / OS ---
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
