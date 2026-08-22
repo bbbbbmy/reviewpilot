@@ -1,14 +1,22 @@
-// Command reviewpilot is the entrypoint for the ReviewPilot server.
+// Command reviewpilot is the entrypoint for the ReviewPilot server
+// (and CLI).
 //
-// In v0.0.1 it exposes only `GET /healthz` to verify the HTTP plumbing,
-// packaging, and CI scaffolding. Real review pipeline / LLM / GitHub
-// integrations land in subsequent releases — see
-// https://github.com/bbbbbmy/vibecoding/tree/main/openspec/changes/implement-reviewpilot-mvp
+// Server mode (default) — `reviewpilot server`:
+//
+//	GET /healthz                — liveness
+//	GET /metrics                 — Prometheus
+//	POST /webhook                — GitHub pull_request event
+//
+// CLI mode — `reviewpilot review <range|--stdin> --repo <id>`:
+//
+//	runs the review pipeline locally and writes JSON comments to
+//	stdout or --out <file>.
 package main
 
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
@@ -16,19 +24,54 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/spf13/cobra"
+
 	"github.com/bbbbbmy/reviewpilot/internal/webdashboard"
 )
 
 // version is the build version. Overridable via the build flag
 //
-//	-ldflags "-X main.version=v0.1.0"
-var version = "v0.0.1-dev"
+//	-ldflags "-X main.version=v0.3.0"
+var version = "v0.3.0-dev"
 
 func main() {
-	os.Exit(run())
+	root := &cobra.Command{
+		Use:           "reviewpilot",
+		Short:         "Self-hosted AI code review bot",
+		SilenceUsage:  true,
+		SilenceErrors: false,
+	}
+	root.AddCommand(reviewCmd)
+	root.AddCommand(serverCmd)
+	root.AddCommand(versionCmd)
+	if err := root.Execute(); err != nil {
+		var ee *exitError
+		if errors.As(err, &ee) {
+			fmt.Fprintln(os.Stderr, ee.msg)
+			os.Exit(ee.code)
+		}
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
 }
 
-func run() int {
+var versionCmd = &cobra.Command{
+	Use:   "version",
+	Short: "Print the build version",
+	Run: func(cmd *cobra.Command, args []string) {
+		fmt.Println(version)
+	},
+}
+
+var serverCmd = &cobra.Command{
+	Use:   "server",
+	Short: "Run the HTTP server (default if no subcommand given)",
+	Run: func(cmd *cobra.Command, args []string) {
+		os.Exit(runServer())
+	},
+}
+
+func runServer() int {
 	addr := os.Getenv("RP_HTTP_LISTEN")
 	if addr == "" {
 		addr = ":8080"
@@ -37,10 +80,25 @@ func run() int {
 	logger := slog.New(slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{}))
 	slog.SetDefault(logger)
 
-	srv := webdashboard.NewServer()
+	// Build webhook handler. If credentials are missing we run a
+	// degraded server that returns 503 on /webhook but still serves
+	// /healthz and /metrics. This is more useful than failing to boot.
+	wh, whErr := buildWebhookHandler(logger)
+
+	mux := http.NewServeMux()
+	mux.Handle("GET /healthz", webdashboard.NewServer().Handler())
+	if wh != nil {
+		mux.HandleFunc("POST /webhook", wh.ServeHTTP)
+	} else {
+		mux.HandleFunc("POST /webhook", func(w http.ResponseWriter, r *http.Request) {
+			logger.Warn("webhook disabled: credentials missing", "err", whErr)
+			http.Error(w, "webhook disabled: "+whErr.Error(), http.StatusServiceUnavailable)
+		})
+	}
+
 	httpsrv := &http.Server{
 		Addr:              addr,
-		Handler:           srv.Handler(),
+		Handler:           mux,
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       30 * time.Second,
 		WriteTimeout:      30 * time.Second,
@@ -76,3 +134,8 @@ func run() int {
 		return 1
 	}
 }
+
+// unused but kept for go vet on build tags etc.
+var _ = context.Background
+
+// exitError is defined in cli.go alongside the review subcommand.

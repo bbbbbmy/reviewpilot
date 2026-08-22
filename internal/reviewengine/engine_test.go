@@ -186,8 +186,12 @@ func TestNewDefaultEngine_RequiresLLM(t *testing.T) {
 	}
 }
 
-func TestNewDefaultEngine_RequiresPlatform(t *testing.T) {
-	if _, err := NewDefaultEngine(EngineDeps{LLM: &fakeLLM{}}); !errors.Is(err, ErrMissingPlatform) {
-		t.Fatalf("err=%v, want ErrMissingPlatform", err)
+func TestNewDefaultEngine_PlatformOptionalForCLI(t *testing.T) {
+	eng, err := NewDefaultEngine(EngineDeps{LLM: &fakeLLM{}})
+	if err != nil {
+		t.Fatalf("nil platform should be allowed (CLI mode): %v", err)
+	}
+	if eng == nil {
+		t.Fatal("expected non-nil engine")
 	}
 }

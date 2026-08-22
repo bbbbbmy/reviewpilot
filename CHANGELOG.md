@@ -4,6 +4,59 @@ All notable changes to this project will be documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/), and this
 project adheres to [Semantic Versioning](https://semver.org/).
 
+## [v0.3.0] - 2026-08-22
+
+### Added — platform-integrations package (`internal/platformgithub`)
+
+Implements the [platform-integrations capability](https://github.com/bbbbbmy/vibecoding/tree/main/openspec/specs/platform-integrations) (4 Requirement). The real `GitHubAdapter` replaces the phase-3 fake platform; CLI + server entry points land.
+
+- `types.go` — `Config{AppID, PrivateKeyPEM, WebhookSecret, Token, HTTPClient, BaseURL}` + `PullRequestEvent` + `Comment` + `PlatformError`
+- `credentials.go` — `LoadConfigFromEnv()` reads `RP_GITHUB_*` env vars; missing required var fails fast
+- `webhook.go` — `VerifySignature` (HMAC-SHA256 + constant-time compare) + `ParsePullRequestEvent` (distinguishes pull_request vs issue events by top-level field) + `VerifyAndParse` combo
+- `ratelimit.go` — `parseRetryAfter` (seconds + HTTP-date) + `classifyHTTPError` (rate_limited / 5xx / 4xx / unknown)
+- `comments.go` — `PostInlineComment` (review-comments API) + `PostSummaryComment` (issue-comments API) + `ListComments` (inline + summary, partial result on summary failure)
+- `adapter.go` — `GitHubAdapter` implements `reviewengine.PlatformAdapter`; `NewAdapterFromEnv()` for server bootstrap
+- 27 unit tests (httptest mock GitHub API)
+
+### Added — CLI + Server entry (`cmd/reviewpilot`)
+
+- `cli.go` — cobra `review` subcommand:
+  - `reviewpilot review <base>...<head> --repo <id>` (git diff)
+  - `reviewpilot review --stdin` (read patch from stdin)
+  - `--out -` (stdout) / `--out <file>`
+  - non-zero exit codes for missing repo / empty diff / git failure / engine failure
+- `main.go` — cobra root + `review` / `server` / `version` subcommands
+- `server.go` — webhook receiver:
+  - HMAC signature verify → 401 on fail
+  - parse PR event → diff from payload.patch (or payload.diff)
+  - engine run → post inline comments + summary comment
+  - failure isolation: webhook handler errors return 5xx, server process stays alive
+  - 503 on /webhook if credentials missing
+
+### Changed
+
+- `internal/reviewengine`: `EngineDeps.Platform` is now optional (nil = CLI mode, no platform dedup); `NewDefaultEngine` no longer requires it
+- `internal/reviewengine.Pipeline` nil-safe on `Platform`
+- `cmd/reviewpilot/main.go` rewritten on top of cobra
+
+### Dependencies
+
+- `github.com/spf13/cobra v1.10.2` added (CLI framework)
+- `github.com/spf13/pflag` (transitive)
+- `github.com/inconshreveable/mousetrap` (transitive)
+
+### Verification
+
+- `gofmt -l .` empty
+- `go vet ./...` empty
+- `staticcheck ./...` empty
+- `go test -count=1 ./...` — 107 tests pass
+
+### Implementation reference
+
+- Phase 4 proposal: [vibecoding → add-reviewpilot-impl-phase4](https://github.com/bbbbbmy/vibecoding/tree/main/openspec/changes/add-reviewpilot-impl-phase4)
+- Spec: [vibecoding → spec/platform-integrations](https://github.com/bbbbbmy/vibecoding/tree/main/openspec/specs/platform-integrations)
+
 ## [v0.2.0] - 2026-08-22
 
 ### Added — review-engine package (`internal/reviewengine`)

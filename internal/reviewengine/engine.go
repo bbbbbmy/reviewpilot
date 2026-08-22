@@ -39,14 +39,13 @@ type DefaultEngine struct {
 }
 
 // NewDefaultEngine validates dependencies and returns a DefaultEngine.
-// Returns an error if LLM or Platform are nil.
+// LLM is required. Platform may be nil for CLI mode (no platform
+// dedup); server mode must supply a real PlatformAdapter.
 func NewDefaultEngine(deps EngineDeps) (*DefaultEngine, error) {
 	if deps.LLM == nil {
 		return nil, ErrMissingLLM
 	}
-	if deps.Platform == nil {
-		return nil, ErrMissingPlatform
-	}
+	// Platform is optional — CLI mode passes nil.
 	if deps.Feedback == nil {
 		deps.Feedback = NewInMemoryFeedbackStore()
 	}

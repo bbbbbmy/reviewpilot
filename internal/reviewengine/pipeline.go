@@ -108,13 +108,18 @@ func (p *Pipeline) Run(ctx context.Context, req Request) (Result, error) {
 		allComments = append(allComments, parseLLMComments(ch.FilePath, resp.Content)...)
 	}
 
-	// Step 4: dedup against existing platform comments
+	// Step 4: dedup against existing platform comments. Platform
+	// is optional (CLI mode passes nil) — fall back to local-only
+	// dedup in that case.
 	t2 := time.Now()
-	existing, listErr := p.deps.Platform.ListComments(ctx, req.RepoID, req.PRNumber)
-	if listErr != nil {
-		p.deps.Logger.Warn("list existing comments failed", "err", listErr)
-		// Continue with empty existing — dedup just becomes local.
-		existing = nil
+	var existing []ExistingComment
+	if p.deps.Platform != nil {
+		var listErr error
+		existing, listErr = p.deps.Platform.ListComments(ctx, req.RepoID, req.PRNumber)
+		if listErr != nil {
+			p.deps.Logger.Warn("list existing comments failed", "err", listErr)
+			existing = nil
+		}
 	}
 	result.StepDurations[StepDedup] = time.Since(t2)
 	p.deps.Metrics.ObserveStep(StepDedup, result.StepDurations[StepDedup].Seconds())
