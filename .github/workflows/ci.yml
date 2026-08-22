@@ -35,9 +35,12 @@ jobs:
       - name: staticcheck
         # staticcheck is a stdlib-equivalent extra linter with broad
         # coverage; install via `go install` (cached by actions/setup-go).
-        # Use latest stable; pin only when needed.
+        # Pin to v0.7.0: requires go>=1.25 (matches this project's
+        # go-version), so staticcheck 2026.1 binaries install cleanly
+        # under the runner's actions/setup-go go1.25 + auto-toolchain.
+        # Bump manually when the project moves to go1.26+.
         run: |
-          go install honnef.co/go/tools/cmd/staticcheck@latest
+          go install honnef.co/go/tools/cmd/staticcheck@v0.7.0
           staticcheck ./...
 
   test:
