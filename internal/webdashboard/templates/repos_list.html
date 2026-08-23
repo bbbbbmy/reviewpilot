@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>{{ .Title }} — ReviewPilot</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+</head>
+<body>
+  <header>
+    <h1>{{ .Title }}</h1>
+    <nav>
+      <a href="/reviews">Reviews</a>
+      <a href="/repos">Repos</a>
+      <a href="/api/v1/repos">API</a>
+    </nav>
+  </header>
+
+  <section>
+    <h2>Add repository</h2>
+    <form method="POST" action="/repos">
+      <label>Full name <input name="full_name" required pattern="[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+"></label>
+      <label>Provider <input name="provider" value="openai-default" required></label>
+      <label>Model <input name="model" value="gpt-4o-mini" required></label>
+      <label>Max input tokens / PR <input name="max_input_tokens_per_pr" type="number" value="100000"></label>
+      <label>Feedback window (days) <input name="feedback_window_days" type="number" value="30"></label>
+      <label class="inline"><input type="checkbox" name="enabled" value="1" checked> enabled</label>
+      <button type="submit">Upsert</button>
+    </form>
+  </section>
+
+  <section>
+    <h2>Configured repositories</h2>
+    {{ if .Repos }}
+    <table>
+      <thead>
+        <tr><th>Full name</th><th>Provider</th><th>Model</th><th>MaxTok</th><th>Window</th><th>Enabled</th><th></th></tr>
+      </thead>
+      <tbody>
+      {{ range .Repos }}
+        <tr>
+          <td>{{ .FullName }}</td>
+          <td>{{ .Provider }}</td>
+          <td>{{ .Model }}</td>
+          <td>{{ .MaxInputTokensPerPR }}</td>
+          <td>{{ .FeedbackWindowDays }}d</td>
+          <td>{{ if .Enabled }}✅{{ else }}❌{{ end }}</td>
+          <td>
+            <form method="POST" action="/repos/{{ .ID }}" style="display:inline">
+              <input type="hidden" name="max_input_tokens_per_pr" value="{{ .MaxInputTokensPerPR }}">
+              <input type="hidden" name="feedback_window_days" value="{{ .FeedbackWindowDays }}">
+              <input type="hidden" name="enabled" value="{{ if .Enabled }}0{{ else }}1{{ end }}">
+              <button type="submit">Toggle</button>
+            </form>
+          </td>
+        </tr>
+      {{ end }}
+      </tbody>
+    </table>
+    {{ else }}
+      <p>No repositories configured.</p>
+    {{ end }}
+  </section>
+</body>
+</html>

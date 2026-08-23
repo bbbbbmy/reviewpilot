@@ -4,6 +4,51 @@ All notable changes to this project will be documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/), and this
 project adheres to [Semantic Versioning](https://semver.org/).
 
+## [v0.4.0] - 2026-08-22
+
+### Added — web-dashboard package (`internal/webdashboard`)
+
+Implements the [web-dashboard capability](https://github.com/bbbbbmy/vibecoding/tree/main/openspec/specs/web-dashboard) (6 Requirement). Replaces v0.0.1 minimal server with full HTML + JSON API + auth + SQLite persistence.
+
+- `types.go` — `Repo` / `Review` / `Comment` / `Feedback` records + `ReviewStatus` enum
+- `store.go` — `SQLiteStore` (modernc.org/sqlite, pure Go, no CGO): `Open` + WAL + FK + migrations; `UpsertRepo` / `ListRepos` / `GetRepoByFullName` / `RecordReview` / `ListReviews` / `GetReviewByID` / `RecordComment` / `ListCommentsForReview` / `AddFeedback`. Implements `reviewengine.FeedbackStore`
+- `migrations.go` + `migrations/0001_init.sql` — embedded SQL schema (repo / review / comment / feedback)
+- `auth.go` — `BasicAuth(user, pass)` middleware using `crypto/subtle.ConstantTimeCompare`; `LoadAdminFromEnv` fails fast if `RP_ADMIN_USER` / `RP_ADMIN_PASS` missing
+- `handlers.go` — HTML handlers (index redirect, repos list/create/update, reviews list/detail, feedback submit) + JSON `/api/v1/*` handlers
+- `server.go` — full mux: `GET /` redirect, `/repos` / `/reviews` / `/api/v1/repos` / `/api/v1/reviews` / `/healthz` / `/metrics` + embedded HTML templates + static CSS
+- `templates/repos_list.html` + `reviews_list.html` + `review_detail.html` — `html/template` + HTMX 1.9.10 (CDN)
+- `static/style.css` — minimal CSS (~150 lines)
+
+### Added — server mode wiring (`cmd/reviewpilot/main.go`)
+
+- Reads `RP_ADMIN_USER` + `RP_ADMIN_PASS` at startup; refuses to start without them (`RP_DEV_MODE=1` skips for dev)
+- Opens SQLite at `RP_DB_PATH` (default `/var/lib/reviewpilot/review.db`)
+- Single `*http.ServeMux` routing `/healthz` (no auth) + `/metrics` (no auth, Prometheus `promhttp`) + `/webhook` (signature-verified) + dashboard mux (Basic Auth) mounted at `/`
+- `buildWebhookHandlerWithRegistry(logger, registry)` shares one Prometheus registry across webhook + `/metrics`
+- New `webdashboard.NewServerWithStore(store)` factory
+
+### Changed
+
+- `cmd/reviewpilot/server.go` rewritten: `buildWebhookHandlerWithRegistry` + `buildEngine` (factory) + `makeWebhookHandler` (handler)
+- `internal/webdashboard/server.go`: deprecated `NewServer()` retained for backward compat; new `NewServerWithStore(store)` is the canonical path
+
+### Dependencies
+
+- `modernc.org/sqlite v1.57.0` added (pure Go SQLite driver; no CGO)
+- `github.com/prometheus/client_golang/prometheus/promhttp` added (for `/metrics` endpoint)
+
+### Verification
+
+- `gofmt -l .` empty
+- `go vet ./...` empty
+- `staticcheck ./...` empty
+- `go test -count=1 ./...` — 134 tests pass (webdashboard 30 / llmopenai 33 / platformgithub 27 / reviewengine 33 / webdashboard 11 [server])
+
+### Implementation reference
+
+- Phase 5 proposal: [vibecoding → add-reviewpilot-impl-phase5](https://github.com/bbbbbmy/vibecoding/tree/main/openspec/changes/add-reviewpilot-impl-phase5)
+- Spec: [vibecoding → spec/web-dashboard](https://github.com/bbbbbmy/vibecoding/tree/main/openspec/specs/web-dashboard)
+
 ## [v0.3.0] - 2026-08-22
 
 ### Added — platform-integrations package (`internal/platformgithub`)

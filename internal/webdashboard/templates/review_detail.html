@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>{{ .Title }} — ReviewPilot</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+</head>
+<body>
+  <header>
+    <h1>{{ .Title }}</h1>
+    <nav>
+      <a href="/reviews">Reviews</a>
+      <a href="/repos">Repos</a>
+    </nav>
+  </header>
+
+  <section>
+    <h2>Status: {{ .Review.Status }}</h2>
+    <p>
+      PR #{{ .Review.PRNumber }} · commit <code>{{ truncate .Review.CommitSHA 8 }}</code> ·
+      started {{ .Review.StartedAt.Format "2006-01-02 15:04:05" }}
+    </p>
+    {{ if .Review.Reason }}<p>Reason: <code>{{ .Review.Reason }}</code></p>{{ end }}
+    <p>Tokens: <strong>{{ .Review.TokensIn }}</strong> in / <strong>{{ .Review.TokensOut }}</strong> out</p>
+  </section>
+
+  <section>
+    <h2>Comments ({{ len .Comments }})</h2>
+    {{ if .Comments }}
+      {{ range .Comments }}
+      <article class="comment">
+        <header>
+          <code>{{ .FilePath }}:{{ .LineNumber }}</code>
+          <span class="fp">fp={{ truncate .Fingerprint 12 }}</span>
+        </header>
+        <pre>{{ .Body }}</pre>
+        <form method="POST" action="/reviews/{{ $.Review.ID }}/comments/{{ .ID }}/feedback" hx-post hx-target="#fb-{{ .ID }}">
+          <button name="rating" value="up" type="submit">👍</button>
+          <button name="rating" value="down" type="submit">👎</button>
+          <input name="text" placeholder="optional note">
+        </form>
+        <div id="fb-{{ .ID }}"></div>
+      </article>
+      {{ end }}
+    {{ else }}
+      <p>No comments produced.</p>
+    {{ end }}
+  </section>
+</body>
+</html>

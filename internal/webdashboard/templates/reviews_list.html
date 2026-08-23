@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>{{ .Title }} — ReviewPilot</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+</head>
+<body>
+  <header>
+    <h1>{{ .Title }}</h1>
+    <nav>
+      <a href="/reviews">Reviews</a>
+      <a href="/repos">Repos</a>
+      <a href="/api/v1/reviews">API</a>
+    </nav>
+  </header>
+
+  <section>
+    <h2>Recent reviews</h2>
+    {{ if .Reviews }}
+    <table>
+      <thead>
+        <tr><th>#</th><th>Repo</th><th>PR</th><th>Status</th><th>Tokens (in/out)</th><th>Started</th></tr>
+      </thead>
+      <tbody>
+      {{ range .Reviews }}
+        <tr>
+          <td><a href="/reviews/{{ .ID }}">#{{ .ID }}</a></td>
+          <td>{{ .RepoID }}</td>
+          <td>{{ .PRNumber }}</td>
+          <td>{{ .Status }}</td>
+          <td>{{ .TokensIn }} / {{ .TokensOut }}</td>
+          <td>{{ .StartedAt.Format "2006-01-02 15:04" }}</td>
+        </tr>
+      {{ end }}
+      </tbody>
+    </table>
+    <p><a href="?page=2">Next page →</a></p>
+    {{ else }}
+      <p>No reviews yet.</p>
+    {{ end }}
+  </section>
+</body>
+</html>
