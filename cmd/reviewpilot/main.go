@@ -125,8 +125,6 @@ func runServer() int {
 
 	// Single mux.
 	mux := http.NewServeMux()
-	mux.Handle("GET /healthz", dash.Handler()) // already authed via webdashboard mux? no — Server.Handler wraps everything except /healthz & /metrics.
-	// Actually let me use the dedicated health handler:
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		_, _ = w.Write([]byte(`{"status":"ok"}`))
