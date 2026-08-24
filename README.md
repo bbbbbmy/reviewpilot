@@ -2,6 +2,8 @@
 
 > Self-hosted AI code review bot (Go + CLI + Web UI). Ship v0.4.0 — MVP complete.
 
+[中文版本](README.zh-CN.md)
+
 ReviewPilot watches GitHub Pull Requests, runs a 5-step review pipeline
 against an OpenAI-compatible LLM, posts inline + summary comments back
 to GitHub, and gives the team a web UI to triage findings and feed
